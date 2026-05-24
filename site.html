@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tudo no 3D — Impressão 3D Profissional Sob Demanda</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #050505;
+    --bg-2: #0d0d0d;
+    --card: rgba(28, 28, 30, 0.6);
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #f5f5f7;
+    --text-dim: #98989d;
+    --text-soft: #d4d4d8;
+    --accent: #FF6B1A;
+    --accent-glow: rgba(255, 107, 26, 0.5);
+    --cyan: #38BDF8;
+    --cyan-glow: rgba(56, 189, 248, 0.4);
+    --success: #4ADE80;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+
+  /* ---------- Loading Screen ---------- */
+  #loader {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 30px;
+    transition: opacity 0.5s ease 0.2s, visibility 0.5s ease 0.2s;
+  }
+  #loader.hidden { opacity: 0; visibility: hidden; }
+  .loader-logo {
+    font-size: 36px; font-weight: 800; letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.97); }
+  }
+  .loader-bar {
+    width: 200px; height: 3px;
+    background: rgba(255,255,255,0.1); border-radius: 2px;
+    overflow: hidden; position: relative;
+  }
+  .loader-bar::after {
+    content: ''; position: absolute; left: 0; top: 0;
+    width: 40%; height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--cyan));
+    border-radius: 2px;
+    animation: slide 1.2s ease-in-out infinite;
+  }
+  @keyframes slide {
+    0% { left: -40%; } 100% { left: 100%; }
+  }
+
+  /* ---------- Background ambient ---------- */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 800px 600px at 20% 10%, rgba(255, 107, 26, 0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 85% 80%, rgba(56, 189, 248, 0.08), transparent 60%);
+    pointer-events: none;
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 18px 40px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: rgba(5, 5, 5, 0.7);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    transition: padding 0.3s ease;
+  }
+  header.scrolled { padding: 12px 40px; background: rgba(5, 5, 5, 0.95); }
+  .logo {
+    font-size: 24px; font-weight: 800; letter-spacing: -0.5px;
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--text);
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #ff8540);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; color: #000;
+    box-shadow: 0 0 30px var(--accent-glow);
+  }
+  nav { display: flex; gap: 30px; align-items: center; }
+  nav a {
+    color: var(--text-soft); text-decoration: none; font-size: 14px;
+    font-weight: 500; transition: color 0.2s;
+  }
+  nav a:hover { color: var(--accent); }
+  .btn {
+    padding: 11px 22px; border-radius: 10px; font-weight: 600;
+    text-decoration: none; font-size: 14px; cursor: pointer;
+    border: none; font-family: inherit; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-primary {
+    background: var(--accent); color: #000;
+    box-shadow: 0 8px 30px -8px var(--accent-glow);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px -8px var(--accent-glow), 0 0 0 1px rgba(255,107,26,0.3);
+  }
+  .btn-ghost {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border); backdrop-filter: blur(10px);
+  }
+  .btn-ghost:hover {
+    border-color: var(--accent); background: rgba(255,107,26,0.05);
+  }
+
+  @media (max-width: 768px) {
+    header { padding: 14px 20px; }
+    nav .nav-link { display: none; }
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative; z-index: 1;
+    min-height: 100vh; padding: 140px 40px 80px;
+    display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 60px;
+    align-items: center; max-width: 1400px; margin: 0 auto;
+  }
+  .hero-content { animation: fadeUp 0.9s ease 0.2s both; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 100px;
+    background: rgba(255,107,26,0.12);
+    border: 1px solid rgba(255,107,26,0.3);
+    font-size: 12px; color: var(--accent); font-weight: 600;
+    margin-bottom: 24px;
+  }
+  .badge::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 10px var(--accent);
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+  }
+  .hero h1 {
+    font-size: clamp(2.5rem, 5vw, 4.2rem);
+    font-weight: 800; line-height: 1.05; letter-spacing: -1.5px;
+    margin-bottom: 22px;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--accent) 0%, #ff8540 60%, var(--cyan) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-sub {
+    font-size: 18px; color: var(--text-soft); max-width: 540px;
+    margin-bottom: 36px; line-height: 1.6;
+  }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+
+  /* Hero 3D cube */
+  .hero-visual {
+    position: relative; height: 480px;
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 1.2s ease 0.4s both;
+  }
+  .scene {
+    perspective: 1200px; width: 300px; height: 300px;
+    position: relative;
+  }
+  .cube {
+    width: 100%; height: 100%; position: relative;
+    transform-style: preserve-3d;
+    animation: rotateCube 18s linear infinite;
+  }
+  @keyframes rotateCube {
+    from { transform: rotateX(-20deg) rotateY(0deg); }
+    to { transform: rotateX(-20deg) rotateY(360deg); }
+  }
+  .face {
+    position: absolute; width: 300px; height: 300px;
+    border: 1px solid rgba(255, 107, 26, 0.4);
+    background:
+      linear-gradient(135deg, rgba(255, 107, 26, 0.08), rgba(56, 189, 248, 0.06)),
+      rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 60px rgba(255, 107, 26, 0.15);
+  }
+  .face::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 107, 26, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 107, 26, 0.15) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+  .face.front  { transform: translateZ(150px); }
+  .face.back   { transform: rotateY(180deg) translateZ(150px); }
+  .face.right  { transform: rotateY(90deg) translateZ(150px); }
+  .face.left   { transform: rotateY(-90deg) translateZ(150px); }
+  .face.top    { transform: rotateX(90deg) translateZ(150px); background: linear-gradient(135deg, rgba(255, 107, 26, 0.2), rgba(56, 189, 248, 0.1)); }
+  .face.bottom { transform: rotateX(-90deg) translateZ(150px); }
+  .face-content {
+    font-size: 60px; font-weight: 900; z-index: 1;
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    opacity: 0.7;
+  }
+
+  /* Floating particles */
+  .particle {
+    position: absolute; border-radius: 50%;
+    pointer-events: none; opacity: 0.6;
+    animation: float 8s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(30px, -40px); }
+    50% { transform: translate(-20px, -60px); }
+    75% { transform: translate(40px, 20px); }
+  }
+
+  @media (max-width: 968px) {
+    .hero { grid-template-columns: 1fr; padding: 120px 20px 60px; gap: 40px; }
+    .hero-visual { height: 320px; }
+    .scene { width: 200px; height: 200px; }
+    .face { width: 200px; height: 200px; }
+    .face.front { transform: translateZ(100px); }
+    .face.back { transform: rotateY(180deg) translateZ(100px); }
+    .face.right { transform: rotateY(90deg) translateZ(100px); }
+    .face.left { transform: rotateY(-90deg) translateZ(100px); }
+    .face.top { transform: rotateX(90deg) translateZ(100px); }
+    .face.bottom { transform: rotateX(-90deg) translateZ(100px); }
+  }
+
+  /* ---------- Stats bar ---------- */
+  .stats-bar {
+    position: relative; z-index: 1; max-width: 1200px; margin: 0 auto;
+    padding: 30px 40px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px;
+    background: var(--card); backdrop-filter: blur(20px);
+    border: 1px solid var(--border); border-radius: 20px;
+    margin-top: -20px;
+  }
+  .stat { text-align: center; }
+  .stat-num {
+    font-size: 32px; font-weight: 800; letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent), #ff8540);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  @media (max-width: 768px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); padding: 20px; margin: 0 20px; }
+  }
+
+  /* ---------- Section base ---------- */
+  section {
+    position: relative; z-index: 1;
+    padding: 120px 40px;
+    max-width: 1400px; margin: 0 auto;
+  }
+  .section-head { text-align: center; margin-bottom: 60px; }
+  .section-tag {
+    display: inline-block; font-size: 12px; font-weight: 700;
+    color: var(--accent); text-transform: uppercase; letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+  .section-head h2 {
+    font-size: clamp(2rem, 4vw, 3rem); font-weight: 800;
+    letter-spacing: -1px; line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .section-head p {
+    color: var(--text-dim); max-width: 600px; margin: 0 auto;
+    font-size: 17px;
+  }
+
+  /* ---------- Services Grid ---------- */
+  .services {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .service-card {
+    position: relative; padding: 30px;
+    background: var(--card); backdrop-filter: blur(20px);
+    border: 1px solid var(--border); border-radius: 18px;
+    transition: all 0.4s cubic-bezier(.2,.8,.2,1);
+    overflow: hidden;
+  }
+  .service-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,107,26,0.1), transparent 50%);
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+  .service-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(255,107,26,0.35);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,107,26,0.1);
+  }
+  .service-card:hover::before { opacity: 1; }
+  .service-icon {
+    width: 52px; height: 52px; border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255, 107, 26, 0.2), rgba(56, 189, 248, 0.1));
+    border: 1px solid rgba(255, 107, 26, 0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 18px;
+  }
+  .service-card h3 { font-size: 19px; margin-bottom: 8px; }
+  .service-card p { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+
+  /* ---------- Processo (timeline) ---------- */
+  .process {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+    position: relative;
+  }
+  .process::before {
+    content: ''; position: absolute; top: 30px; left: 8%; right: 8%;
+    height: 1px; background: linear-gradient(90deg, transparent, var(--accent), var(--cyan), transparent);
+    z-index: 0;
+  }
+  .step { text-align: center; position: relative; z-index: 1; }
+  .step-num {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: var(--bg-2); border: 1px solid var(--border);
+    margin: 0 auto 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800;
+    background: linear-gradient(135deg, rgba(255,107,26,0.2), rgba(56,189,248,0.1));
+    color: var(--accent);
+    box-shadow: 0 0 30px -5px var(--accent-glow);
+  }
+  .step h4 { font-size: 16px; margin-bottom: 6px; }
+  .step p { font-size: 13px; color: var(--text-dim); }
+  @media (max-width: 768px) {
+    .process { grid-template-columns: 1fr; gap: 30px; }
+    .process::before { display: none; }
+  }
+
+  /* ---------- Portfolio grid ---------- */
+  .portfolio {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .portfolio-item {
+    aspect-ratio: 1; border-radius: 14px; overflow: hidden;
+    position: relative; cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--card); backdrop-filter: blur(20px);
+    transition: all 0.4s;
+  }
+  .portfolio-item:hover {
+    transform: scale(1.03) translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px var(--accent);
+  }
+  .portfolio-item .placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 60px; opacity: 0.4;
+    background: radial-gradient(circle at center, rgba(255,107,26,0.1), transparent 70%);
+  }
+  .portfolio-item img { width: 100%; height: 100%; object-fit: cover; }
+  .portfolio-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 16px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.85), transparent);
+    transform: translateY(100%); transition: transform 0.3s;
+  }
+  .portfolio-item:hover .portfolio-overlay { transform: translateY(0); }
+  .portfolio-overlay h4 { font-size: 14px; margin-bottom: 2px; }
+  .portfolio-overlay span { font-size: 11px; color: var(--accent); }
+
+  /* ---------- Materiais ---------- */
+  .materials {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .material {
+    padding: 24px; background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border); border-radius: 14px;
+    text-align: center; transition: all 0.3s;
+  }
+  .material:hover { border-color: var(--accent); transform: translateY(-3px); }
+  .material .mat-name { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .material .mat-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+  .colors { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .color-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); }
+
+  /* ---------- Depoimentos ---------- */
+  .testimonials {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .testimonial {
+    padding: 28px; background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border); border-radius: 18px;
+    position: relative;
+  }
+  .testimonial::before {
+    content: '"'; position: absolute; top: 10px; right: 20px;
+    font-size: 80px; font-family: Georgia, serif; line-height: 1;
+    color: var(--accent); opacity: 0.3;
+  }
+  .test-text { font-size: 15px; line-height: 1.7; color: var(--text-soft); margin-bottom: 20px; }
+  .test-author { display: flex; align-items: center; gap: 12px; }
+  .test-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #000; font-size: 18px;
+  }
+  .test-author-name { font-weight: 600; font-size: 14px; }
+  .test-author-role { font-size: 12px; color: var(--text-dim); }
+
+  /* ---------- CTA / Form ---------- */
+  .cta-section {
+    text-align: center;
+    background:
+      radial-gradient(ellipse 800px 400px at center, rgba(255,107,26,0.15), transparent 70%),
+      var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,107,26,0.2); border-radius: 24px;
+    padding: 60px 40px;
+    margin: 0 40px;
+  }
+  .cta-section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); margin-bottom: 16px; }
+  .cta-section p { color: var(--text-soft); margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto; }
+  .form {
+    max-width: 540px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .form input, .form select, .form textarea {
+    width: 100%; padding: 14px 18px;
+    background: rgba(0,0,0,0.4); color: var(--text);
+    border: 1px solid var(--border); border-radius: 12px;
+    font-size: 15px; font-family: inherit; outline: none;
+    transition: border-color 0.2s;
+  }
+  .form input:focus, .form select:focus, .form textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(255,107,26,0.1);
+  }
+  .form button {
+    margin-top: 8px; padding: 16px 30px;
+    background: var(--accent); color: #000;
+    border: none; border-radius: 12px; cursor: pointer;
+    font-size: 16px; font-weight: 700;
+    font-family: inherit;
+    box-shadow: 0 10px 30px -8px var(--accent-glow);
+    transition: all 0.2s;
+  }
+  .form button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 40px -8px var(--accent-glow);
+  }
+  .form-success {
+    display: none; padding: 20px; margin-top: 20px;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid var(--success); border-radius: 12px;
+    color: var(--success);
+  }
+  .form-success.active { display: block; animation: fadeUp 0.4s ease; }
+
+  /* ---------- Footer ---------- */
+  footer {
+    position: relative; z-index: 1;
+    padding: 60px 40px 30px;
+    border-top: 1px solid var(--border);
+    margin-top: 60px;
+  }
+  .footer-grid {
+    max-width: 1200px; margin: 0 auto;
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px; margin-bottom: 40px;
+  }
+  .footer-brand p { color: var(--text-dim); margin-top: 12px; max-width: 280px; font-size: 14px; }
+  .footer-col h5 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; color: var(--accent); }
+  .footer-col a {
+    display: block; color: var(--text-dim); text-decoration: none;
+    font-size: 14px; margin-bottom: 10px; transition: color 0.2s;
+  }
+  .footer-col a:hover { color: var(--text); }
+  .footer-bottom {
+    text-align: center; padding-top: 30px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim); font-size: 13px;
+  }
+  @media (max-width: 768px) {
+    .footer-grid { grid-template-columns: 1fr 1fr; gap: 30px; }
+  }
+
+  /* ---------- WhatsApp float ---------- */
+  .whatsapp-float {
+    position: fixed; bottom: 24px; right: 24px; z-index: 99;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #25D366;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none; color: #fff;
+    box-shadow: 0 10px 40px rgba(37, 211, 102, 0.5);
+    transition: all 0.3s;
+    animation: pulseGlow 2.5s ease-in-out infinite;
+  }
+  .whatsapp-float:hover { transform: scale(1.1); }
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 10px 40px rgba(37, 211, 102, 0.5), 0 0 0 0 rgba(37, 211, 102, 0.5); }
+    50% { box-shadow: 0 10px 40px rgba(37, 211, 102, 0.5), 0 0 0 18px rgba(37, 211, 102, 0); }
+  }
+  .whatsapp-float svg { width: 30px; height: 30px; }
+
+  /* ---------- Reveal on scroll ---------- */
+  .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: opacity 0.7s cubic-bezier(.2,.8,.2,1), transform 0.7s cubic-bezier(.2,.8,.2,1);
+  }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loader">
+  <div class="loader-logo">tudono3d</div>
+  <div class="loader-bar"></div>
+</div>
+
+<!-- Header -->
+<header id="header">
+  <a href="#" class="logo">
+    <div class="logo-mark">t3d</div>
+    <span>tudono3d</span>
+  </a>
+  <nav>
+    <a href="#servicos" class="nav-link">Serviços</a>
+    <a href="#portfolio" class="nav-link">Portfólio</a>
+    <a href="#processo" class="nav-link">Processo</a>
+    <a href="#contato" class="nav-link">Contato</a>
+    <a href="#contato" class="btn btn-primary">Fazer orçamento</a>
+  </nav>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="badge">IMPRESSORAS ONLINE AGORA</div>
+    <h1>Impressão 3D <span>profissional</span> sob demanda</h1>
+    <p class="hero-sub">Transformamos sua ideia em produto físico em até 72h. Bambu Lab multi-color, PLA premium, entrega Brasil inteiro. Do chaveiro personalizado à decoração premium.</p>
+    <div class="hero-ctas">
+      <a href="#contato" class="btn btn-primary">🚀 Fazer orçamento grátis</a>
+      <a href="#portfolio" class="btn btn-ghost">Ver portfólio</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="scene">
+      <div class="cube">
+        <div class="face front"><div class="face-content">3D</div></div>
+        <div class="face back"></div>
+        <div class="face right"></div>
+        <div class="face left"></div>
+        <div class="face top"></div>
+        <div class="face bottom"></div>
+      </div>
+    </div>
+    <div class="particle" style="width:8px;height:8px;background:var(--accent);top:10%;left:5%;box-shadow:0 0 20px var(--accent);animation-delay:0s"></div>
+    <div class="particle" style="width:6px;height:6px;background:var(--cyan);top:70%;left:85%;box-shadow:0 0 15px var(--cyan);animation-delay:2s"></div>
+    <div class="particle" style="width:10px;height:10px;background:var(--accent);top:80%;left:10%;box-shadow:0 0 25px var(--accent);animation-delay:4s"></div>
+    <div class="particle" style="width:5px;height:5px;background:var(--cyan);top:20%;left:90%;box-shadow:0 0 12px var(--cyan);animation-delay:1s"></div>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats-bar reveal">
+  <div class="stat"><div class="stat-num">500+</div><div class="stat-label">Peças impressas</div></div>
+  <div class="stat"><div class="stat-num">72h</div><div class="stat-label">Prazo médio</div></div>
+  <div class="stat"><div class="stat-num">4</div><div class="stat-label">Cores simultâneas</div></div>
+  <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Satisfação</div></div>
+</div>
+
+<!-- Serviços -->
+<section id="servicos">
+  <div class="section-head reveal">
+    <div class="section-tag">O que fazemos</div>
+    <h2>Serviços sob medida</h2>
+    <p>Do utilitário ao decorativo. Tudo impresso em PLA premium nas nossas Bambu Lab A1 e A1 mini com sistema AMS multi-color.</p>
+  </div>
+  <div class="services">
+    <div class="service-card reveal">
+      <div class="service-icon">💡</div>
+      <h3>Litofania personalizada</h3>
+      <p>Sua foto vira luminária. Presente único pra Dia das Mães, namorados, memorial pet.</p>
+    </div>
+    <div class="service-card reveal">
+      <div class="service-icon">🎂</div>
+      <h3>Topo de bolo</h3>
+      <p>Aniversário, casamento, primeira comunhão. Personalizado com nome, data e tema.</p>
+    </div>
+    <div class="service-card reveal">
+      <div class="service-icon">🔑</div>
+      <h3>Chaveiro com nome</h3>
+      <p>Lembrancinha, brinde de evento, presente em lote. A partir de R$ 15.</p>
+    </div>
+    <div class="service-card reveal">
+      <div class="service-icon">🌸</div>
+      <h3>Vasos & decoração</h3>
+      <p>Design moderno, vase mode estético, várias cores. Pra sala, escritório, presente.</p>
+    </div>
+    <div class="service-card reveal">
+      <div class="service-icon">🙏</div>
+      <h3>Devocional católico</h3>
+      <p>Nossa Senhora Aparecida, santos, terços, presépios. Qualquer tamanho.</p>
+    </div>
+    <div class="service-card reveal">
+      <div class="service-icon">♿</div>
+      <h3>Acessibilidade idoso</h3>
+      <p>Abridor de potes, organizador de remédio, suportes adaptados pra mãos com dificuldade.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Processo -->
+<section id="processo">
+  <div class="section-head reveal">
+    <div class="section-tag">Como funciona</div>
+    <h2>Do briefing à entrega</h2>
+    <p>5 passos simples. Sem complicação, sem surpresa.</p>
+  </div>
+  <div class="process">
+    <div class="step reveal"><div class="step-num">1</div><h4>Você manda a ideia</h4><p>WhatsApp ou formulário</p></div>
+    <div class="step reveal"><div class="step-num">2</div><h4>Orçamento em 1h</h4><p>Preço, prazo, cores</p></div>
+    <div class="step reveal"><div class="step-num">3</div><h4>Aprovação</h4><p>Pagamento via Pix</p></div>
+    <div class="step reveal"><div class="step-num">4</div><h4>Impressão</h4><p>Acompanhe ao vivo</p></div>
+    <div class="step reveal"><div class="step-num">5</div><h4>Entrega</h4><p>Correios ou retirada</p></div>
+  </div>
+</section>
+
+<!-- Portfolio -->
+<section id="portfolio">
+  <div class="section-head reveal">
+    <div class="section-tag">Galeria</div>
+    <h2>Peças que já entregamos</h2>
+    <p>Cada peça é única. Olha o que clientes pediram nos últimos meses.</p>
+  </div>
+  <div class="portfolio" id="portfolioGrid">
+    <!-- Preenchido dinamicamente do painel admin, fallback abaixo -->
+  </div>
+</section>
+
+<!-- Materiais -->
+<section id="materiais">
+  <div class="section-head reveal">
+    <div class="section-tag">Materiais</div>
+    <h2>PLA premium nas suas cores</h2>
+    <p>Bambu Lab AMS = até 4 cores no mesmo print, sem troca manual de filamento.</p>
+  </div>
+  <div class="materials">
+    <div class="material reveal">
+      <div class="mat-name">PLA Básico</div>
+      <div class="mat-desc">Versátil, brilhante, indoor</div>
+      <div class="colors">
+        <div class="color-dot" style="background:#fff"></div>
+        <div class="color-dot" style="background:#000"></div>
+        <div class="color-dot" style="background:#ef4444"></div>
+        <div class="color-dot" style="background:#3b82f6"></div>
+        <div class="color-dot" style="background:#22c55e"></div>
+        <div class="color-dot" style="background:#fbbf24"></div>
+        <div class="color-dot" style="background:#ec4899"></div>
+        <div class="color-dot" style="background:#a855f7"></div>
+      </div>
+    </div>
+    <div class="material reveal">
+      <div class="mat-name">PLA Matte</div>
+      <div class="mat-desc">Visual fosco, premium</div>
+      <div class="colors">
+        <div class="color-dot" style="background:#f5f5f4"></div>
+        <div class="color-dot" style="background:#1c1917"></div>
+        <div class="color-dot" style="background:#78716c"></div>
+      </div>
+    </div>
+    <div class="material reveal">
+      <div class="mat-name">PLA Silk</div>
+      <div class="mat-desc">Acabamento brilhante metálico</div>
+      <div class="colors">
+        <div class="color-dot" style="background:linear-gradient(135deg,#fbbf24,#f59e0b)"></div>
+        <div class="color-dot" style="background:linear-gradient(135deg,#a8a29e,#57534e)"></div>
+        <div class="color-dot" style="background:linear-gradient(135deg,#fb7185,#ec4899)"></div>
+      </div>
+    </div>
+    <div class="material reveal">
+      <div class="mat-name">Multi-color</div>
+      <div class="mat-desc">Até 4 cores no mesmo print (AMS)</div>
+      <div class="colors">
+        <div class="color-dot" style="background:linear-gradient(135deg,#fff,#000,#ef4444,#3b82f6)"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Depoimentos -->
+<section id="depoimentos">
+  <div class="section-head reveal">
+    <div class="section-tag">Clientes</div>
+    <h2>O que dizem de nós</h2>
+  </div>
+  <div class="testimonials">
+    <div class="testimonial reveal">
+      <p class="test-text">Pedi uma litofania da minha mãe falecida e chorei quando recebi. Qualidade impressionante, vou pedir mais pra família toda.</p>
+      <div class="test-author">
+        <div class="test-avatar">M</div>
+        <div>
+          <div class="test-author-name">Maria L.</div>
+          <div class="test-author-role">Cliente desde 2026</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial reveal">
+      <p class="test-text">Encomendei 30 chaveiros pra festa de 80 anos da minha avó em 48h. Ficou perfeito, todo mundo amou.</p>
+      <div class="test-author">
+        <div class="test-avatar">C</div>
+        <div>
+          <div class="test-author-name">Carlos M.</div>
+          <div class="test-author-role">Festa familiar</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial reveal">
+      <p class="test-text">O abridor de potes foi um divisor de águas pra minha mãe que tem artrite. Vou comprar mais pra dar de presente.</p>
+      <div class="test-author">
+        <div class="test-avatar">A</div>
+        <div>
+          <div class="test-author-name">Ana P.</div>
+          <div class="test-author-role">Acessibilidade</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="contato">
+  <div class="cta-section reveal">
+    <h2>Vamos fazer o seu projeto?</h2>
+    <p>Conta pra gente o que você precisa. Resposta em até 1 hora durante horário comercial.</p>
+    <form class="form" id="orcForm" onsubmit="enviarOrcamento(event)">
+      <input type="text" name="nome" placeholder="Seu nome *" required>
+      <input type="tel" name="whatsapp" placeholder="WhatsApp (com DDD) *" required>
+      <select name="categoria" required>
+        <option value="">O que você precisa?</option>
+        <option>Litofania personalizada</option>
+        <option>Topo de bolo</option>
+        <option>Chaveiro / Personalizado</option>
+        <option>Vaso / Decoração</option>
+        <option>Devocional / Religioso</option>
+        <option>Acessibilidade idoso</option>
+        <option>Outro (descreva)</option>
+      </select>
+      <textarea name="descricao" rows="4" placeholder="Descreve sua ideia (tamanho, quantidade, prazo, foto pra litofania, etc)..." required></textarea>
+      <button type="submit">📩 Enviar orçamento</button>
+      <div class="form-success" id="formSuccess">
+        ✅ Recebemos seu pedido! Vamos responder no seu WhatsApp em até 1h durante horário comercial.
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="#" class="logo">
+        <div class="logo-mark">t3d</div>
+        <span>tudono3d</span>
+      </a>
+      <p>Impressão 3D profissional sob demanda. Bambu Lab, PLA premium, entrega Brasil inteiro.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Empresa</h5>
+      <a href="#servicos">Serviços</a>
+      <a href="#portfolio">Portfólio</a>
+      <a href="#processo">Como funciona</a>
+    </div>
+    <div class="footer-col">
+      <h5>Suporte</h5>
+      <a href="#contato">Orçamento</a>
+      <a href="https://wa.me/5500000000000" target="_blank">WhatsApp</a>
+      <a href="https://instagram.com/tudono3d" target="_blank">Instagram</a>
+    </div>
+    <div class="footer-col">
+      <h5>Social</h5>
+      <a href="https://instagram.com/tudono3d" target="_blank">@tudono3d</a>
+      <a href="#">Shopee</a>
+      <a href="#">Mercado Livre</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2026 tudono3d · Impressão 3D sob demanda · Feito com 🧡 no Brasil
+  </div>
+</footer>
+
+<!-- WhatsApp Float -->
+<a href="https://wa.me/5500000000000?text=Oi!%20Vim%20pelo%20site%20e%20quero%20fazer%20um%20orçamento" target="_blank" class="whatsapp-float" title="Falar no WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.002-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/>
+  </svg>
+</a>
+
+<script>
+// ===== Loading screen =====
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loader').classList.add('hidden'), 400);
+});
+
+// ===== Header scroll =====
+const header = document.getElementById('header');
+window.addEventListener('scroll', () => {
+  header.classList.toggle('scrolled', window.scrollY > 20);
+});
+
+// ===== Reveal on scroll =====
+const reveals = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('in');
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+reveals.forEach(r => io.observe(r));
+
+// ===== Stagger animation for grids =====
+document.querySelectorAll('.services .reveal, .testimonials .reveal, .materials .reveal, .process .reveal').forEach((el, i) => {
+  el.style.transitionDelay = (i * 80) + 'ms';
+});
+
+// ===== Service card mouse glow effect =====
+document.querySelectorAll('.service-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    card.style.setProperty('--mx', ((e.clientX - rect.left) / rect.width * 100) + '%');
+    card.style.setProperty('--my', ((e.clientY - rect.top) / rect.height * 100) + '%');
+  });
+});
+
+// ===== Portfolio: pulls from admin panel localStorage if exists =====
+function loadPortfolio() {
+  const grid = document.getElementById('portfolioGrid');
+  let produtos = [];
+  try {
+    produtos = JSON.parse(localStorage.getItem('t3d_produtos') || '[]');
+  } catch(e) {}
+  // Mostra apenas disponíveis com foto
+  const featured = produtos.filter(p => (p.status === 'disponivel' || !p.status) && (p.imagem || (p.imagens && p.imagens.length))).slice(0, 8);
+  if (featured.length > 0) {
+    grid.innerHTML = featured.map(p => {
+      const photo = p.imagem || (p.imagens && p.imagens[0]) || '';
+      const preco = p.preco ? `A partir de R$ ${p.preco.toFixed(0)}` : '';
+      return `
+        <div class="portfolio-item reveal">
+          <img src="${photo}" alt="${p.nome}" onerror="this.outerHTML='<div class=\\'placeholder\\'>📦</div>'">
+          <div class="portfolio-overlay">
+            <h4>${p.nome}</h4>
+            <span>${preco}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+    // Re-observa novos elementos
+    grid.querySelectorAll('.reveal').forEach(r => io.observe(r));
+  } else {
+    // Fallback: placeholders mock
+    const mock = ['💡', '🎂', '🔑', '🌸', '🙏', '🐉', '🏷️', '📦'];
+    grid.innerHTML = mock.map(emoji => `
+      <div class="portfolio-item reveal">
+        <div class="placeholder">${emoji}</div>
+      </div>
+    `).join('');
+    grid.querySelectorAll('.reveal').forEach(r => io.observe(r));
+  }
+}
+loadPortfolio();
+
+// ===== Form: envia pra localStorage (admin painel consome) =====
+function enviarOrcamento(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+    nome: form.nome.value,
+    whatsapp: form.whatsapp.value,
+    categoria: form.categoria.value,
+    descricao: form.descricao.value,
+    criadoEm: Date.now(),
+    status: 'novo',
+    origem: 'site'
+  };
+  let lista = [];
+  try { lista = JSON.parse(localStorage.getItem('t3d_orcamentos') || '[]'); } catch(e) {}
+  lista.unshift(data);
+  localStorage.setItem('t3d_orcamentos', JSON.stringify(lista));
+
+  // Mostra sucesso
+  document.getElementById('formSuccess').classList.add('active');
+  form.reset();
+
+  // Opcional: abre WhatsApp também
+  setTimeout(() => {
+    const msg = `Olá! Vim pelo site.\n\nNome: ${data.nome}\nProduto: ${data.categoria}\nDescrição: ${data.descricao}`;
+    const wa = 'https://wa.me/5500000000000?text=' + encodeURIComponent(msg);
+    if (confirm('Quer já abrir o WhatsApp pra falar com a gente agora?')) window.open(wa, '_blank');
+  }, 1200);
+}
+
+// ===== Smooth scroll fix for fixed header =====
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      const offset = target.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top: offset, behavior: 'smooth' });
+    }
+  });
+});
+</script>
+</body>
+</html>
